@@ -28,7 +28,7 @@ class ChatMessageHistoryProvider(ABC):
         """
         pass
 
-class AegisChatMessageHistoryMixin:
+class ChatMessageHistoryMixin:
 
     def transform_message(self, message: AIMessage) -> BaseMessage:
         """
