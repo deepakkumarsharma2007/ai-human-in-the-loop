@@ -16,7 +16,7 @@ from pydantic import BaseModel, Field
 from genai_core.agent.agent_base import AgentBase
 from genai_core.agent.audit_context import AuditContext
 from genai_core.agent.exceptions.agent_exception import AgentException
-from genai_core.agent.model_base import ModelBase
+from core.models.model_base import ModelBase
 from langchain_core.messages.base import BaseMessage
 from langchain_core.messages import ToolMessage
 from genai_core.agent.shared_agent_state import SharedAgentState
