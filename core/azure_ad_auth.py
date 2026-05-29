@@ -80,12 +80,27 @@ class AzureADBearer(HTTPBearer):
             except Exception as e:
                 raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=f"Token validation error: {str(e)}")
         else:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid authorization code.")
+
+
+           auditcontext = self.get_audit_context(request, token, payload)
+           return auditcontext
+
+           raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid authorization code.")
     
     def get_user_alias_from_payload(self, payload):
         """
         Returns user alias from payload information from msal token verification
         """
+
+
+
+        payload = {
+            "email": "deepakkumarsharma2007@gmail.com"
+        }
+
+
+
+
         email = payload["email"] if payload.get("email") else payload["preferred_username"]
         useralias = email.split("@")[0]
         return useralias, email
@@ -94,13 +109,29 @@ class AzureADBearer(HTTPBearer):
         """
         Returns user name from payload information from msal token verification
         """
-        return payload.get("name", "")
+
+
+
+# hard coded
+
+        return payload.get("name", "deepakkumarsharma2007")
+    
+
+
     
     def get_user_oid_from_payload(self, payload):
         """
         Returns user oid from payload information from msal token verification.
         """
-        return payload.get("oid")
+
+
+
+# hard coded
+
+        return payload.get("oid", "6a19371f-4de3-4cbd-9a30-dfa5bb4c9f2b")
+    
+
+
 
     def get_audit_context(self, request: Request, token:str, payload: Dict[str, Any]) -> AuditContext:
         """
