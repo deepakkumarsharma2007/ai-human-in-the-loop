@@ -15,11 +15,11 @@ LOGS_DIR = os.environ.get("AGENT_LOGGER_LOGS_DIR", None)
 LOGS_LEVEL = os.environ.get("AGENT_LOGGER_LOGS_LEVEL", "INFO")
 
 
-class AgentLogger:
+class DKSAgentLogger:
 
     
     def __init__(self) -> None:
-        raise NotImplementedError("AgentLogger is a static class, cannot be instantiated. Use AgentLogger.get_logger() to get logger instance.")
+        raise NotImplementedError("DKSAgentLogger is a static class, cannot be instantiated. Use DKSAgentLogger.get_logger() to get logger instance.")
 
     ###########################################################################
     # Configure logging function
@@ -86,7 +86,7 @@ class AgentLogger:
     #
     # Gets configured logger object from logging module.
     #
-    # logger = get_logger() # You can segment logging like get_logger('core') get_logger('scripts') get_logger('security') get_logger('tools') get_logger('skills')
+    # logger = DKSAgentLogger.get_logger() # You can segment logging like DKSAgentLogger.get_logger('core') DKSAgentLogger.get_logger('scripts') DKSAgentLogger.get_logger('security') DKSAgentLogger.get_logger('tools') DKSAgentLogger.get_logger('skills')
     #
     # logger.info('Info message')
     # logger.error('Error message')
@@ -109,7 +109,7 @@ class AgentLogger:
         # Check if there are handlers attached to the logger, if yes, then logging already configured
         # No need to reconfigure it.
         if not logger_obj.hasHandlers():
-            AgentLogger.configure_logging()
+            DKSAgentLogger.configure_logging()
 
         # return the logger object
         return logger_obj
