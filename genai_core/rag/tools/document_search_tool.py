@@ -39,6 +39,8 @@ class MongoDBRAGSearchToolAdapter(BaseTool):
     
     It can query the MongoDB vector store that contains the document chunks and their corresponding embeddings 
     to find the most relevant documents based on the user's natural language query.
+
+    It returns multile relevant documents from MongoDB RAG based index as a list of strings. Each string in the list represents the content of a relevant document chunk retrieved from the MongoDB vector store.
     """
     
     args_schema: type[MongoDBRAGSearchAdapterSchema] = MongoDBRAGSearchAdapterSchema
@@ -63,7 +65,7 @@ class MongoDBRAGSearchToolAdapter(BaseTool):
     def _run(self) -> Any:
             raise NotImplementedError("This tool is async only. Use _arun method.")
     
-    def find_documents_rag_search(self, user_query: str):
+    def find_documents_rag_search(self, user_query: str)-> list[str]:
         """
         Does semantic search in MongoDB RAG based index.
         """
