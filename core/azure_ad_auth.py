@@ -15,7 +15,7 @@ def get_unauthenticated_audit_context(request: Request) -> AuditContext:
         user_alias="deepakkumarsharma2007",
         session_id="",
         client_platform=client_platform,
-        authinfo="",
+        authinfo="dummy_bearer_token_for_testing",
         user_name="Deepak Kumar",
         email="deepakkumarsharma2007@gmail.com",
     )

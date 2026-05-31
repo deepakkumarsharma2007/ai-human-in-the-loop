@@ -3,9 +3,7 @@ import json
 from fastapi import Depends
 from genai_core.agent.chat_service import ChatService
 from langchain_openai import AzureOpenAIEmbeddings
-from genai_core.cache import agent_cache
 from genai_core.mongodb.repo.conversation_document_repo import ConversationDocumentRepo
-from genai_core.agent.react_agent import CoreReActAgent
 from pymongo import MongoClient
 from functools import lru_cache
 
