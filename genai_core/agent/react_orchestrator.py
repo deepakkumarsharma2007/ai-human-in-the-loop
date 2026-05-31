@@ -3,6 +3,7 @@ from typing import Dict, Any, AsyncGenerator
 from core.models.azurechatopenai import AzureChatOpenAiModel
 from core.dependency_agent_chat_history import create_agent_chat_history
 from core.utils import generate_uuid7_id
+from genai_core.agent.agents_prompts import DKS_AGENT_CAPABILITIES, DKS_AGENT_SYSTEM_PROMPT, DKS_AGENT_TYPICAL_TASKS
 from genai_core.agent.react_agent import CoreReActAgent
 
 from core import error_types
@@ -10,6 +11,7 @@ from genai_core.rag.tools.document_search_tool import mongodb_document_search_ag
 from genai_core.agent.mcp_client_utils import (
     get_mcp_tools_with_server,
     StructuredToolToBaseToolAdapter,
+    langchain_structured_tool_to_base_tool,
 )
 from langchain_mcp_adapters.sessions import StreamableHttpConnection
 
@@ -51,7 +53,7 @@ async def get_semantic_document_search_tools(
 ) -> list[StructuredToolToBaseToolAdapter]:
     
     tool_adapter = mongodb_document_search_agent_adapter()
-    tools = [tool_adapter._arun()]
+    tools = langchain_structured_tool_to_base_tool([tool_adapter])
     return tools
 
 
@@ -93,27 +95,19 @@ async def get_reactorchestrator_agent(
     # Create CoreReActAgent
     return CoreReActAgent(
         name="DKS Orchestrator Agent",
-
-
-
-
-
-
-
-
-        # capabilities=AGENT_CAPABILITIES_PROMPT,
-        # description=AGENT_SYSTEM_PROMPT,
-        # typical_tasks=AGENT_TYPICAL_TASKS_PROMPT,
-
-
-
-
+        capabilities=DKS_AGENT_CAPABILITIES,
+        description=DKS_AGENT_SYSTEM_PROMPT,
+        typical_tasks=DKS_AGENT_TYPICAL_TASKS,
         tools=orchestrator_tools,
         llm=llm,
         chat_history_client=chat_history,
+
+
         # checkpointer= CheckPointer.REDIS,
-        agent_cache=agent_cache,
-        summarize_llm=summarize_llm,
+        # agent_cache=agent_cache,
+
+
+        summarizer_llm=summarize_llm,
     )
 
 
