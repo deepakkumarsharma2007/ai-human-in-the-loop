@@ -6,7 +6,7 @@ from langchain_core.messages.tool import ToolMessage
 
 class ChatMessageHistoryProvider(ABC):
     """
-    Abstract base class for Aegis chat message history provider.
+    Abstract base class for chat message history provider.
     Provides a template for creating chat history clients.
 
     Init method initializes the DB client connection which can be reused while initializing BaseChatMessageHistory instance.

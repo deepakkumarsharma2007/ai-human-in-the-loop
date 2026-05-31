@@ -1,10 +1,8 @@
 
-import json
-from typing import Dict, Any, Optional
 from fastapi import APIRouter, Depends, status, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 from genai_core.logs.agent_logging import DKSAgentLogger
-from genai_core.agent.audit_context import AuditContext
+from core.audit_context import AuditContext
 from models.requestresponse import (
     OrchestratorChatRequest,
     ChatRequestErrorResponse,
@@ -21,7 +19,7 @@ from core.dependencies import (
 )
 from core.dependency_agent_chat_history import create_agent_chat_history
 from core.feedback_service import FeedbackRepository, get_feedback_repository_dep
-from core.azure_ad_auth import AzureADBearer
+from core.azure_ad_auth import get_unauthenticated_audit_context
 from core.utils import generate_conversation_id, generate_uuid7_id
 from datetime import datetime, timezone
 from models.requestresponse import ConversationListResponse, ChatMessage
@@ -42,25 +40,17 @@ from genai_core.agent.react_agent import (
 )
 from models.requestresponse import DataPart
 from core.error_types import AgentOrchestratorBaseError
-from core.error_handlers import (
-    get_orchestrator_quota_error_response,
-    get_error_response_for_orchestrator_base_error,
-    get_unhandled_exception_response,
-    get_orchestrator_contentFilter_error_response,
-)
 from openai import BadRequestError, RateLimitError
 
 # Get app logger object
 logger = DKSAgentLogger.get_logger()
-
-security = AzureADBearer()
 
 conversations_api_router = APIRouter(prefix="/conversations", tags=["Conversations"])
 
 
 def update_auditcontext_with_headers(
     request: Request,
-    auditcontext: AuditContext = Depends(security),
+    auditcontext: AuditContext = Depends(get_unauthenticated_audit_context),
 ) -> AuditContext:
     client_platform = request.headers.get("x-client-platform")
     if client_platform:
@@ -151,7 +141,7 @@ async def create_or_send_or_hitl(
 @conversations_api_router.get("", response_model=ConversationListResponse)
 async def list_conversations(
     repo: ConversationDocumentRepo = Depends(get_conversation_repo),
-    auditcontext: AuditContext = Depends(security),
+    auditcontext: AuditContext = Depends(get_unauthenticated_audit_context),
     skip: int = Query(0, ge=0, description="Number of items to skip"),
     limit: int = Query(20, ge=1, le=100, description="Max number of items to return"),
 ):
@@ -191,7 +181,7 @@ async def get_conversation(
     use_case: ChatService = Depends(get_conversationhistory_use_case),
     repo: ConversationDocumentRepo = Depends(get_conversation_repo),
     chathistoryclient: ChatHistory = Depends(create_agent_chat_history),
-    auditcontext: AuditContext = Depends(security),
+    auditcontext: AuditContext = Depends(get_unauthenticated_audit_context),
     request: Request = Request,
 ):
     """Get conversation by ID."""

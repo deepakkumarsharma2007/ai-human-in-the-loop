@@ -6,14 +6,14 @@ from core.utils import generate_uuid7_id
 from genai_core.agent.react_agent import CoreReActAgent
 
 from core import error_types
+from genai_core.rag.tools.document_search_tool import mongodb_document_search_agent_adapter
 from mcp_client_utils import (
     get_mcp_tools_with_server,
     StructuredToolToBaseToolAdapter,
 )
 from langchain_mcp_adapters.sessions import StreamableHttpConnection
 
-# from slb_aegis_genai.core.agents.models.auditcontext import AuditContext
-from genai_core.agent.audit_context import AuditContext
+from core.audit_context import AuditContext
 from datetime import timedelta
 from langsmith import traceable
 from langsmith import Client
@@ -27,18 +27,18 @@ async def get_mcp_tools(
     auditcontext: AuditContext, transport: str = "streamable_http"
 ) -> list[StructuredToolToBaseToolAdapter]:
     """
-    Returns a list of ACE MCP agent tools from the MCP server.
-    Requires MCP_SERVER_URL environment variable and AuditContext.
+    Returns a list of Document MCP agent tools from the MCP server.
+    Requires MCP_RAG_MONGO_NATURAL_LANGUAGE_SERVER_URL environment variable and AuditContext.
     """
     mcp_enabled = str(os.environ.get("MCP_AGENT_ENABLED")).lower() == "yes"
     if not mcp_enabled:
         return []
-    MCP_SERVER_URL = os.environ.get("MCP_SERVER_URL")
-    if MCP_SERVER_URL is None:
+    MCP_RAG_MONGO_NATURAL_LANGUAGE_SERVER_URL = os.environ.get("MCP_RAG_MONGO_NATURAL_LANGUAGE_SERVER_URL")
+    if MCP_RAG_MONGO_NATURAL_LANGUAGE_SERVER_URL is None:
         return []
     mcp_connection = StreamableHttpConnection(
         transport=transport,
-        url=MCP_SERVER_URL,
+        url=MCP_RAG_MONGO_NATURAL_LANGUAGE_SERVER_URL,
         timeout=timedelta(minutes=5),
         headers={"Authorization": "Bearer " + auditcontext.additional_args["authinfo"]},
     )
@@ -47,34 +47,19 @@ async def get_mcp_tools(
 
 
 async def get_semantic_document_search_tools(
-    auditcontext: AuditContext, transport: str = "streamable_http"
-) -> list[StructuredToolToAegisBaseToolAdapter]:
-    """
-    Returns a list of Productivity MCP agent tools from the MCP Productivity server.
-    Requires MCP_PRODUCTIVITY_SERVER_URL environment variable and AuditContext.
-    """
-    mcp_enabled = str(os.environ.get("MCP_AGENT_ENABLED")).lower() == "yes"
-    if not mcp_enabled:
-        return []
-    MCP_PRODUCTIVITY_SERVER_URL = os.environ.get("MCP_PRODUCTIVITY_SERVER_URL")
-    if MCP_PRODUCTIVITY_SERVER_URL is None:
-        return []
-    mcp_connection = StreamableHttpConnection(
-        transport=transport,
-        url=MCP_PRODUCTIVITY_SERVER_URL,
-        timeout=timedelta(minutes=5),
-        headers={"Authorization": "Bearer " + auditcontext.additional_args["authinfo"]},
-    )
-    tools = await get_mcp_tools_with_server(connection=mcp_connection)
-
+    auditcontext: AuditContext
+) -> list[StructuredToolToBaseToolAdapter]:
+    
+    tool_adapter = mongodb_document_search_agent_adapter()
+    tools = [tool_adapter]
     return tools
 
 
 async def get_reactorchestrator_agent(
     orchestrator_tools: list[StructuredToolToBaseToolAdapter],
 ) -> CoreReActAgent:
-    # Create Aegis Tools / Business workflows
-    aegis_chat_history = create_agent_chat_history()
+    # Create Tools / Business workflows
+    chat_history = create_agent_chat_history()
 
     # Create Azure Chat OpenAI
     llm = AzureChatOpenAiModel()
@@ -90,7 +75,7 @@ async def get_reactorchestrator_agent(
 
 
 
-    # make a smaller LLM fr summarization and other smaller tasks to save cost, while using the bigger model for agent reasoning
+    # make a smaller LLM for summarization and other smaller tasks to save cost, while using the bigger model for agent reasoning
 
 
 
@@ -125,7 +110,7 @@ async def get_reactorchestrator_agent(
 
         tools=orchestrator_tools,
         llm=llm,
-        aegischathistoryclient=aegis_chat_history,
+        chat_history_client=chat_history,
         # checkpointer= CheckPointer.REDIS,
         agent_cache=agent_cache,
         summarize_llm=summarize_llm,
