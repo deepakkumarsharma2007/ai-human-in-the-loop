@@ -6,6 +6,20 @@ import jwt
 import requests
 from core.audit_context import AuditContext
 
+
+def get_unauthenticated_audit_context(request: Request) -> AuditContext:
+    """Build a default audit context without requiring bearer authentication."""
+    client_platform = request.headers.get("x-client-platform")
+    return AuditContext(
+        user_oid="anonymous-user-987987-8768768",
+        user_alias="deepakkumarsharma2007",
+        session_id="",
+        client_platform=client_platform,
+        authinfo="",
+        user_name="Deepak Kumar",
+        email="deepakkumarsharma2007@gmail.com",
+    )
+
 AZURE_TENANT_ID = os.environ.get("TENANT_ID")
 AZURE_CLIENT_ID = os.environ.get("AUDIENCE")
 AZURE_SCOPE = os.environ.get("AZURE_SCOPE")

@@ -4,7 +4,7 @@ from typing import Literal, Dict, Any
 
 class TextPart(BaseModel):
     """
-    Represents a text message part for Ace agent communication.
+    Represents a text message part for agent communication.
     """
     kind: Literal["text"] = Field(
         default="text",
@@ -19,7 +19,7 @@ class TextPart(BaseModel):
 
 class FilePart(BaseModel):
     """
-    Represents a file message part for Ace agent communication.
+    Represents a file message part for agent communication.
     """
     kind: Literal["file"] = Field(
         default="file",
@@ -40,7 +40,7 @@ class FilePart(BaseModel):
 
 class DataPart(BaseModel):
     """
-    Represents a data message part for Ace agent communication.
+    Represents a data message part for agent communication.
     """
     kind: Literal["data"] = Field(
         default="data",

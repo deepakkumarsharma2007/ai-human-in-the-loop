@@ -14,7 +14,7 @@ from langsmith.run_helpers import get_current_run_trace
 from openai import BadRequestError
 from pydantic import BaseModel, Field
 from genai_core.agent.agent_base import AgentBase
-from genai_core.agent.audit_context import AuditContext
+from core.audit_context import AuditContext
 from genai_core.agent.exceptions.agent_exception import AgentException
 from core.models.model_base import ModelBase
 from langchain_core.messages.base import BaseMessage

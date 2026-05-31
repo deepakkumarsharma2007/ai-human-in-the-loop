@@ -1,0 +1,42 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "FastAPI: dks-api (uvicorn)",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "uvicorn",
+            "cwd": "${workspaceFolder}/api",
+            "console": "integratedTerminal",
+            // "args": [
+            //     "src.app:app", "--host", "0.0.0.0", "--port", "8001"
+            // ],
+            "args": "main:app --host localhost --port 8002 --reload",
+            "jinja": true,
+            "justMyCode": false,
+            "envFile": "${workspaceFolder}/api/.env"
+            }
+    ]
+}
+
+
+// {
+//     "version": "0.2.0",
+//     "configurations": [
+//          {
+//             "name": "Python Uvicorn FastAPI",
+//             "type": "debugpy",
+//             "request": "launch",
+//             "module": "uvicorn",
+//             "cwd": "${workspaceFolder}",
+//             "console": "integratedTerminal",
+//             "args": "--host localhost --port 8002 --reload main:app",
+//             "envFile": "${workspaceFolder}/.env",
+//             "justMyCode": false,
+//             "jinja": true
+//         }
+//     ]
+// }

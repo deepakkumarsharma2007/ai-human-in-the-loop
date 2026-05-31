@@ -1,6 +1,6 @@
 from dotenv import load_dotenv
 from fastapi import FastAPI
-
+from api.router import conversations_api_router
 from api.health_check_routes import health_check_router
 from api.health_check_routes import mark_startup_complete
 from genai_core.logs.agent_logging import DKSAgentLogger
@@ -30,7 +30,11 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     # root_path=ROOT_PATH,
-    lifespan=lifespan)
+        title="AI Orchestrator API",
+        docs_url="/docs",
+        openapi_url="/openapi.json",
+        redoc_url=None,
+        lifespan=lifespan)
 
 
 # Add health check router

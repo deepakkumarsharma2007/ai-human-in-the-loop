@@ -9,7 +9,7 @@ class ChatHistory:
         """
         Initialize Chat History Provider.
         Args:
-            chat_message_history_provider (ChatMessageHistoryProvider): Aegis wrapper instance for the chat message history provider.
+            chat_message_history_provider (ChatMessageHistoryProvider): wrapper instance for the chat message history provider.
         """
         self.chat_message_history_provider = chat_message_history_provider
 

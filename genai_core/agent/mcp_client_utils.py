@@ -1,6 +1,6 @@
 """
 Module for client side utility functions for communicating with MCP server.
-It provides Aegis MCP adapter tool to convert mcp tool to ageis agent compatible tool.
+It provides MCP adapter tool to convert mcp tool to core agent compatible tool.
 """
 from typing import List, Any
 from langchain_mcp_adapters.tools import load_mcp_tools
@@ -11,7 +11,7 @@ from langchain_core.tools import BaseTool
 
 class StructuredToolToBaseToolAdapter(BaseTool):
     """
-    Adapter tool to convert langchain structured tool to AegisBaseTool
+    Adapter tool to convert langchain structured tool to BaseTool
     """
     # Name of tool
     name: str = ""
@@ -83,16 +83,16 @@ class StructuredToolToBaseToolAdapter(BaseTool):
 
 def langchain_structured_tool_to_base_tool(structured_tools: List[StructuredTool]) -> List[StructuredToolToBaseToolAdapter]:
     """
-    Convert langchain structured tool to toll extended from aegis base tool.
+    Convert langchain structured tool to tool extended from base tool.
 
     Args:
         structured_tools (List[StructuredTool]): List of langchain structured tool objects.
     
     Returns:
-       List[StructuredToolToBaseToolAdapter]: List of StructuredToolToBaseToolAdapter objects which are extended from aegis base tool.
+       List[StructuredToolToBaseToolAdapter]: List of StructuredToolToBaseToolAdapter objects which are extended from base tool.
     """
     tools = []
-    # For each structured tool create tool extended form AegisBaseTool
+    # For each structured tool create tool extended form BaseTool
     for structured_tool in structured_tools:
         tool = StructuredToolToBaseToolAdapter(structured_tool)          
         tools.append(tool)        
@@ -108,8 +108,8 @@ async def get_mcp_tools_with_server(connection: StreamableHttpConnection) -> Lis
         taransport (str): Transport method for MCP server communication. Defaults to streamable_http. @TODO: Implement other transport methods.
     
     Returns:
-        List[StructuredToolToBaseToolAdapter]: List of StructuredToolToBaseToolAdapter objects which are extended from aegis base tool so that they can 
-                                                  be executed with AegisReactAgent.
+        List[StructuredToolToBaseToolAdapter]: List of StructuredToolToBaseToolAdapter objects which are extended from base tool so that they can 
+                                                  be executed with CoreReactAgent.
 
     """
     if connection is None:
@@ -118,6 +118,6 @@ async def get_mcp_tools_with_server(connection: StreamableHttpConnection) -> Lis
     # Load MCP tools from langchain
     mcp_tools = await load_mcp_tools(session=None, connection=connection)
 
-    # Convert langchain structured tool to aegis tool for tool calling on aegis agent.
-    aegis_tools = langchain_structured_tool_to_base_tool(mcp_tools)
-    return aegis_tools
+    # Convert langchain structured tool to dks tool for tool calling on core agent.
+    dks_tools = langchain_structured_tool_to_base_tool(mcp_tools)
+    return dks_tools
