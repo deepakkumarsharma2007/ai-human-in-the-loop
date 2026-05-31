@@ -7,7 +7,7 @@ from genai_core.agent.react_agent import CoreReActAgent
 
 from core import error_types
 from genai_core.rag.tools.document_search_tool import mongodb_document_search_agent_adapter
-from mcp_client_utils import (
+from genai_core.agent.mcp_client_utils import (
     get_mcp_tools_with_server,
     StructuredToolToBaseToolAdapter,
 )
@@ -30,7 +30,7 @@ async def get_mcp_tools(
     Returns a list of Document MCP agent tools from the MCP server.
     Requires MCP_RAG_MONGO_NATURAL_LANGUAGE_SERVER_URL environment variable and AuditContext.
     """
-    mcp_enabled = str(os.environ.get("MCP_AGENT_ENABLED")).lower() == "yes"
+    mcp_enabled = str(os.environ.get("MCP_AGENT_ENABLED")).lower() == "true"
     if not mcp_enabled:
         return []
     MCP_RAG_MONGO_NATURAL_LANGUAGE_SERVER_URL = os.environ.get("MCP_RAG_MONGO_NATURAL_LANGUAGE_SERVER_URL")
@@ -40,7 +40,7 @@ async def get_mcp_tools(
         transport=transport,
         url=MCP_RAG_MONGO_NATURAL_LANGUAGE_SERVER_URL,
         timeout=timedelta(minutes=5),
-        headers={"Authorization": "Bearer " + auditcontext.additional_args["authinfo"]},
+        headers={"Authorization": "Bearer " + auditcontext.additional_args.get("authinfo", "dummy bearer token for testing")},
     )
     tools = await get_mcp_tools_with_server(connection=mcp_connection)
     return tools
@@ -51,7 +51,7 @@ async def get_semantic_document_search_tools(
 ) -> list[StructuredToolToBaseToolAdapter]:
     
     tool_adapter = mongodb_document_search_agent_adapter()
-    tools = [tool_adapter]
+    tools = [tool_adapter._arun()]
     return tools
 
 

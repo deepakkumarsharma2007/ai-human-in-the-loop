@@ -5,12 +5,12 @@ from typing import Any, Dict, List, Optional
 from uuid import uuid7
 from dotenv import load_dotenv
 from langchain.messages import HumanMessage
-from langchain_openai import AzureChatOpenAI
+# from langchain_openai import AzureChatOpenAI
 from langchain_core.tools import BaseTool
 from langchain_core.runnables import RunnableConfig
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import MessagesState
-from langsmith.run_helpers import get_current_run_trace
+from langsmith.run_helpers import get_current_run_tree
 from openai import BadRequestError
 from pydantic import BaseModel, Field
 from genai_core.agent.agent_base import AgentBase
@@ -167,7 +167,7 @@ class CoreReActAgent(AgentBase):
             raise
 
     def set_user_session_details(self, user_query: str, session_id: str, audit_context: dict) -> tuple[HumanMessage, str]:
-        current_run = get_current_run_trace()
+        current_run = get_current_run_tree()
         run_id = current_run.run_id if current_run else None
         user_message = HumanMessage(content=user_query, 
                                         additional_kwargs={"messageid": run_id})

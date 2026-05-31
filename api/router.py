@@ -11,7 +11,7 @@ from models.requestresponse import (
 )
 from genai_core.agent.chat_service import ChatService
 from genai_core.mongodb.repo.conversation_document_repo import ConversationDocumentRepo
-from genai_core.chat_history import ChatHistory
+from genai_core.chat_history.chat_history import ChatHistory
 from core.dependencies import (
     get_chat_use_case,
     get_conversation_repo,
@@ -95,7 +95,7 @@ async def create_or_send_or_hitl(
 
     # Get tools for the agent
     tools_from_mcp = await get_mcp_tools(auditcontext=auditcontext)
-    tools_from_semantic_search = get_semantic_document_search_tools()
+    tools_from_semantic_search = get_semantic_document_search_tools(auditcontext=auditcontext)
     tools = tools_from_semantic_search + tools_from_mcp
 
     # Initialize the agent

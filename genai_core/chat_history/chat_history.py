@@ -1,5 +1,6 @@
 from typing import List
-from langchain.messages import AIMessage, HumanMessage, BaseMessage
+from langchain.messages import AIMessage, HumanMessage
+from langchain_core.messages.base import BaseMessage
 from langchain_core.chat_history import BaseChatMessageHistory
 from genai_core.chat_history.chat_history_base import ChatMessageHistoryProvider
 
