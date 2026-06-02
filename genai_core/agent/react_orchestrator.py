@@ -4,6 +4,7 @@ from core.models.azurechatopenai import AzureChatOpenAiModel
 from core.dependency_agent_chat_history import create_agent_chat_history
 from core.utils import generate_uuid7_id
 from genai_core.agent.agents_prompts import DKS_AGENT_CAPABILITIES, DKS_AGENT_SYSTEM_PROMPT, DKS_AGENT_TYPICAL_TASKS
+from genai_core.agent.check_pointer import CheckPointer
 from genai_core.agent.react_agent import CoreReActAgent
 
 from core import error_types
@@ -95,15 +96,15 @@ async def get_reactorchestrator_agent(
     # Create CoreReActAgent
     return CoreReActAgent(
         name="DKS Orchestrator Agent",
-        capabilities=DKS_AGENT_CAPABILITIES,
+        capability=DKS_AGENT_CAPABILITIES,
         description=DKS_AGENT_SYSTEM_PROMPT,
-        typical_tasks=DKS_AGENT_TYPICAL_TASKS,
+        typical_task=DKS_AGENT_TYPICAL_TASKS,
         tools=orchestrator_tools,
         llm=llm,
         chat_history_client=chat_history,
 
 
-        # checkpointer= CheckPointer.REDIS,
+        checkpointer_type= CheckPointer.REDIS,
         # agent_cache=agent_cache,
 
 

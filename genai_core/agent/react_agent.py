@@ -10,7 +10,7 @@ from langchain_core.tools import BaseTool
 from langchain_core.runnables import RunnableConfig
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import MessagesState, StateGraph
-from langgraph.graph.state import CompiledStateGraph
+from langgraph.graph.state import CompiledStateGraph, RetryPolicy
 from langsmith.run_helpers import get_current_run_tree
 from openai import BadRequestError
 from pydantic import BaseModel, Field
@@ -22,6 +22,7 @@ from core.models.model_base import ModelBase
 from langchain_core.messages.base import BaseMessage
 from langchain_core.messages import ToolMessage
 from genai_core.agent.shared_agent_state import SharedAgentState
+from genai_core.agent.tool_executor_custom import CustomToolExecutorNode
 from genai_core.agent.utils.utils import generate_uuid7_id
 from genai_core.cache.mongodb_checkpointer import MongoDBCheckPointer
 from genai_core.cache.redis_checkpointer import RedisCheckPointer
@@ -29,6 +30,19 @@ from genai_core.chat_history.chat_history import ChatHistory
 from genai_core.logs.agent_logging import DKSAgentLogger
 from genai_core.logs.conversational_logger import ConversationLoggerAdapter
 from models.parts import DataPart
+
+
+
+TOOL_MENTION_PROCESSOR_NODE = "tool_mention_processor"
+TOOL_SELECTOR_NODE = "tool_selector"
+COMBINE_RESULTS_NODE = "combine_results"
+EXECUTE_TOOLS_NODE = "execute_tools"
+UPDATE_SEMANTIC_CACHE_NODE = "update_semantic_cache_node"
+SEMANTIC_CACHE_CONDITION_NODE = "semantic_cache_condition_node"
+GET_FROM_SEMANTIC_CACHE_NODE = "get_from_semantic_cache_node"
+UPDATE_CHAT_HISTORY_NODE = "update_chat_history_node"
+SHOULD_CONTINUE_ITERATION_NODE = "should_continue_iteration_node"
+
 
 class CoreReActAgent(AgentBase):
     
@@ -43,6 +57,7 @@ class CoreReActAgent(AgentBase):
             
             
             chat_history_client: Optional[ChatHistory] = None,
+            checkpointer_type = CheckPointer.NONE,
 
 
 
@@ -66,6 +81,7 @@ class CoreReActAgent(AgentBase):
         self.logger = DKSAgentLogger.get_logger()
 
         self.chat_history_client = chat_history_client
+        self.checkpointer_type = checkpointer_type
 
         if summarizer_llm is None:
             raise AgentException("LLM 'summarizer_llm' must be provided")
@@ -79,20 +95,32 @@ class CoreReActAgent(AgentBase):
 
         workflow = StateGraph(SharedAgentState)
 
-        # add retry
+        workflow.add_node(GET_FROM_SEMANTIC_CACHE_NODE, self.get_from_semantic_cache_node, retry_policy= RetryPolicy(max_attempts=2))
+        workflow.add_node(TOOL_MENTION_PROCESSOR_NODE, self.tool_mention_processor)
+        workflow.add_node(UPDATE_SEMANTIC_CACHE_NODE, self.update_semantic_cache_node)
+        workflow.add_node(TOOL_SELECTOR_NODE, self.decide_tools_with_llm)
+        tool_node = CustomToolExecutorNode(self.tools)
+        workflow.add_node(EXECUTE_TOOLS_NODE, tool_node)
+        workflow.add_node(SHOULD_CONTINUE_ITERATION_NODE, self.should_continue_iterate)
+        workflow.add_node(COMBINE_RESULTS_NODE, self.combine_results)
+        workflow.add_node(UPDATE_SEMANTIC_CACHE_NODE, self.update_semantic_cache_node)
+        workflow.add_node(UPDATE_CHAT_HISTORY_NODE, self.update_chat_history_node)
 
-    
+
         if self.checkpointer_type == CheckPointer.REDIS:
                 self.graph: CompiledStateGraph = workflow.compile(
-                    checkpointer= RedisCheckPointer.set_redis_checkpointer()
+                    checkpointer= RedisCheckPointer().set_redis_checkpointer()
                 )
                 return
         elif self.checkpointer_type == CheckPointer.MONGODB:
                 self.graph: CompiledStateGraph = workflow.compile(
-                    checkpointer= MongoDBCheckPointer.set_mongodb_checkpointer()
+                    checkpointer= MongoDBCheckPointer().set_mongodb_checkpointer()
                 )
                 return
         self.graph: CompiledStateGraph = workflow.compile()
+
+
+        
 
     async def async_execute(self, user_query: str, session_id: str,  audit_context: dict
                             ) -> dict[str, Any]:
