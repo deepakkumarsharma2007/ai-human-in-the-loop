@@ -3,7 +3,7 @@ from typing import Dict, Any, AsyncGenerator
 from core.models.azurechatopenai import AzureChatOpenAiModel
 from core.dependency_agent_chat_history import create_agent_chat_history
 from core.utils import generate_uuid7_id
-from genai_core.agent.agents_prompts import DKS_AGENT_CAPABILITIES, DKS_AGENT_SYSTEM_PROMPT, DKS_AGENT_TYPICAL_TASKS
+from genai_core.agent.agents_prompts import DKS_AGENT_CAPABILITIES, SUMMARY_AGENT_SYSTEM_PROMPT, DKS_AGENT_TYPICAL_TASKS
 from genai_core.agent.check_pointer import CheckPointer
 from genai_core.agent.react_agent import CoreReActAgent
 
@@ -97,7 +97,7 @@ async def get_reactorchestrator_agent(
     return CoreReActAgent(
         name="DKS Orchestrator Agent",
         capability=DKS_AGENT_CAPABILITIES,
-        description=DKS_AGENT_SYSTEM_PROMPT,
+        description=SUMMARY_AGENT_SYSTEM_PROMPT,
         typical_task=DKS_AGENT_TYPICAL_TASKS,
         tools=orchestrator_tools,
         llm=llm,

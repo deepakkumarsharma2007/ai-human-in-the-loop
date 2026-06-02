@@ -7,7 +7,7 @@ import os
 
 from genai_core.agent.prompt_manager import PromptManager
 
-DKS_AGENT_SYSTEM_PROMPT_DEFAULT = """You are the orchestrator for a team of specialized AI agents. Your primary task is to analyze each user query, determine its intent, and select the best-suited agent (or sequence of agents) to provide an accurate, relevant, and helpful response. 
+SUMMARY_SYSTEM_PROMPT_DEFAULT = """You are the orchestrator for a team of specialized AI agents. Your primary task is to analyze each user query, determine its intent, and select the best-suited agent (or sequence of agents) to provide an accurate, relevant, and helpful response. 
     Follow these principles:
         - Understand the Query: Carefully read and interpret the user's question, identifying any implicit or explicit requirements.
         - Identify Agent Capabilities: Consider the purpose, domain expertise, and capabilities of each available agent.
@@ -45,14 +45,14 @@ dks_system_prompt_name = (
 )
 try:
     # agent_prompt = PromptManager().get_prompt(dks_system_prompt_name)
-    DKS_AGENT_SYSTEM_PROMPT = DKS_AGENT_SYSTEM_PROMPT_DEFAULT
+    SUMMARY_AGENT_SYSTEM_PROMPT = SUMMARY_SYSTEM_PROMPT_DEFAULT
     # DKS_SYSTEM_PROMPT = agent_prompt.template.format({}).replace("##model_info##", model_used_info)
 except Exception as e:
-    DKS_AGENT_SYSTEM_PROMPT_DEFAULT = DKS_AGENT_SYSTEM_PROMPT_DEFAULT.replace(
+    SUMMARY_SYSTEM_PROMPT_DEFAULT = SUMMARY_SYSTEM_PROMPT_DEFAULT.replace(
         "##model_info##", model_used_info
     )
 
-    DKS_AGENT_SYSTEM_PROMPT = DKS_AGENT_SYSTEM_PROMPT_DEFAULT
+    SUMMARY_AGENT_SYSTEM_PROMPT = SUMMARY_SYSTEM_PROMPT_DEFAULT
 
 
 # DKS CAPABILITIES PROMPT
