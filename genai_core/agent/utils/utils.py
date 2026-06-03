@@ -1,6 +1,6 @@
 
 
-from uuid import uuid6
+import uuid
 
 
 def generate_uuid7_id() -> str:
@@ -12,4 +12,4 @@ def generate_uuid7_id() -> str:
     Returns:
         str: A string representation of a UUIDv7.
     """
-    return str(uuid6.uuid7())
+    return str(uuid.uuid7())

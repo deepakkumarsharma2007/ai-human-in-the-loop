@@ -112,11 +112,11 @@ async def get_reactorchestrator_agent(
     )
 
 
-async def execute_agent(agent, userprompt, auditcontext: AuditContext):
+async def execute_agent(agent: CoreReActAgent, userprompt: str, auditcontext: AuditContext):
     updatedauditcontext = auditcontext.to_dict()
     updatedauditcontext["additional_args"].pop("authinfo", None)
-    response = await agent.execute(
-        userprompt, sessionid=auditcontext.session_id, auditContext=updatedauditcontext
+    response = await agent.async_execute(
+        userprompt, session_id=auditcontext.session_id,  audit_context=updatedauditcontext
     )
     if response is None:
         return {

@@ -11,6 +11,7 @@ from langchain_core.runnables import RunnableConfig
 from langchain_core.output_parsers import PydanticOutputParser
 from langgraph.graph import END, START, MessagesState, StateGraph
 from langgraph.graph.state import CompiledStateGraph, RetryPolicy
+from langsmith import RunTree
 from langsmith.run_helpers import get_current_run_tree
 from openai import BadRequestError
 from pydantic import BaseModel, Field
@@ -27,6 +28,7 @@ from genai_core.agent.parser_utils import get_output_parser
 from genai_core.agent.shared_agent_state import SharedAgentState
 from genai_core.agent.tool_executor_custom import CustomToolExecutorNode
 from genai_core.agent.utils.utils import generate_uuid7_id
+from genai_core.cache.agent_cache import AgentCacheManager
 from genai_core.cache.agent_cache_prompts import PROMPT_TO_CHECK_CAN_QUERY_BE_CACHED
 from genai_core.cache.mongodb_checkpointer import MongoDBCheckPointer
 from genai_core.cache.redis_checkpointer import RedisCheckPointer
@@ -36,19 +38,22 @@ from genai_core.logs.conversational_logger import ConversationLoggerAdapter
 from models.outputresponsemodel import OutputResponseModel
 from models.parts import DataPart
 from genai_core.agent.utils.agent_utils import *
+from genai_core.agent.genai_lens_langsmith.langsmith_lens import GenAILens
 
 
 
-TOOL_MENTION_PROCESSOR_NODE = "tool_mention_processor"
-TOOL_SELECTOR_NODE = "tool_selector"
-COMBINE_RESULTS_NODE = "combine_results"
-EXECUTE_TOOLS_NODE = "execute_tools"
-UPDATE_SEMANTIC_CACHE_NODE = "update_semantic_cache_node"
-SEMANTIC_CACHE_CONDITION_NODE = "semantic_cache_condition_node"
-GET_FROM_SEMANTIC_CACHE_NODE = "get_from_semantic_cache_node"
-UPDATE_CHAT_HISTORY_NODE = "update_chat_history_node"
-SHOULD_CONTINUE_ITERATION_NODE = "should_continue_iteration_node"
+TOOL_MENTION_PROCESSOR_NODE: str = "tool_mention_processor"
+TOOL_SELECTOR_NODE: str = "tool_selector"
+COMBINE_RESULTS_NODE: str = "combine_results"
+EXECUTE_TOOLS_NODE: str = "execute_tools"
+UPDATE_SEMANTIC_CACHE_NODE: str = "update_semantic_cache_node"
+SEMANTIC_CACHE_CONDITION_NODE: str = "semantic_cache_condition_node"
+GET_FROM_SEMANTIC_CACHE_NODE: str = "get_from_semantic_cache_node"
+UPDATE_CHAT_HISTORY_NODE: str = "update_chat_history_node"
+SHOULD_CONTINUE_ITERATION_NODE: str = "should_continue_iteration_node"
 
+# GenAI lens for tracing
+gen_ai_lens = GenAILens()
 
 class CoreReActAgent(AgentBase):
     
@@ -72,9 +77,9 @@ class CoreReActAgent(AgentBase):
 
 
             max_completion_tokens: Optional[int] = None,
-            summarizer_llm: Optional[ModelBase] = None
+            summarizer_llm: ModelBase = None
             ):
-        super()._init__(name, description, capability, typical_task, llm)
+        super().__init__(name, description, capability, typical_task, llm)
         
 
         if(not tools or not isinstance(tools, list)
@@ -88,11 +93,14 @@ class CoreReActAgent(AgentBase):
         self.tools = tools
         self.llm = llm
         self.logger = DKSAgentLogger.get_logger()
-
+        self.agent_cache = agent_cache
         self.chat_history_client = chat_history_client
         self.checkpointer_type = checkpointer_type
         self.chathistorycount = int(os.getenv("CHATHISTORYCOUNT", 15))
         self.maxiterations = int(os.getenv("MAXITERATIONS", 3))
+        self.strict_tools = strict_tools if strict_tools is not None else []
+        self.sensitive_tools = sensitive_tools if sensitive_tools is not None else []
+        self.filtered_agents_to_exclude = filtered_agents_to_exclude if filtered_agents_to_exclude is not None else []
 
         if summarizer_llm is None:
             raise AgentException("LLM 'summarizer_llm' must be provided")
@@ -112,22 +120,27 @@ class CoreReActAgent(AgentBase):
         workflow.add_node(UPDATE_SEMANTIC_CACHE_NODE, self.update_semantic_cache_node)
         workflow.add_node(TOOL_SELECTOR_NODE, self.decide_tools_with_llm)
         tool_node = CustomToolExecutorNode(self.tools)
-        workflow.add_node(EXECUTE_TOOLS_NODE, tool_node)
+        workflow.add_node(EXECUTE_TOOLS_NODE, tool_node, retry_policy= RetryPolicy(max_attempts=2))
         workflow.add_node(SHOULD_CONTINUE_ITERATION_NODE, self.should_continue_iteration)
         workflow.add_node(COMBINE_RESULTS_NODE, self.combine_results)
-        workflow.add_node(UPDATE_SEMANTIC_CACHE_NODE, self.update_semantic_cache_node)
         workflow.add_node(UPDATE_CHAT_HISTORY_NODE, self.update_chat_history_node)
         
         # Edge
         workflow.add_edge(START, GET_FROM_SEMANTIC_CACHE_NODE)
         workflow.add_conditional_edges(GET_FROM_SEMANTIC_CACHE_NODE, self.semantic_cache_condition_node, {
             "response_from_cache": TOOL_MENTION_PROCESSOR_NODE, # default node if cache hit
-            "not_in_cache_goto_tool_selector": UPDATE_CHAT_HISTORY_NODE
+            "not_in_cache_goto_tool_selector": TOOL_SELECTOR_NODE # default node if cache miss
         })
         workflow.add_conditional_edges(TOOL_MENTION_PROCESSOR_NODE, self.tool_mention_router,{
             "goto_tool_selector": TOOL_SELECTOR_NODE,
             "execute_tools": EXECUTE_TOOLS_NODE                                     
         })
+
+        # workflow.add_conditional_edges(SHOULD_CONTINUE_ITERATION_NODE, self.should_continue_iteration, {
+        #     "combine_results_node": EXECUTE_TOOLS_NODE,
+        #     "execute_tools_node": COMBINE_RESULTS_NODE,
+        #     "__parent__": PARENT
+        # })
         workflow.add_edge(TOOL_SELECTOR_NODE, EXECUTE_TOOLS_NODE)
         workflow.add_edge(EXECUTE_TOOLS_NODE, SHOULD_CONTINUE_ITERATION_NODE) # Conditional edge
         workflow.add_edge(COMBINE_RESULTS_NODE, UPDATE_SEMANTIC_CACHE_NODE)
@@ -139,11 +152,13 @@ class CoreReActAgent(AgentBase):
                 self.graph: CompiledStateGraph = workflow.compile(
                     checkpointer= RedisCheckPointer().set_redis_checkpointer()
                 )
+                self.print_graph_in_png("react_agent_workflow.png")
                 return
         elif self.checkpointer_type == CheckPointer.MONGODB:
                 self.graph: CompiledStateGraph = workflow.compile(
                     checkpointer= MongoDBCheckPointer().set_mongodb_checkpointer()
                 )
+                self.print_graph_in_png("react_agent_workflow.png")
                 return
         self.graph: CompiledStateGraph = workflow.compile()
 
@@ -207,7 +222,9 @@ class CoreReActAgent(AgentBase):
 
         return "execute_tools"
         
-
+    @gen_ai_lens.traceable(
+         name=os.environ.get("AILENS_TRACE_AGENT_NAME", "dks_orchestration_engine")
+    )
     async def async_execute(self, user_query: str, session_id: str,  audit_context: dict
                             ) -> dict[str, Any]:
         # Implement the logic to execute the workflow for the ReAct agent
@@ -219,7 +236,7 @@ class CoreReActAgent(AgentBase):
             # Log the user query
             self.logger.info(f"Starting execution of ReAct agent - Received user query: {user_query}")
 
-            user_message, run_id = self.set_user_session_details(user_query, session_id, audit_context)
+            user_message, run_id, current_run = self.set_user_session_details(user_query, session_id, audit_context)
 
             self.logger = ConversationLoggerAdapter(
                 self.logger,
@@ -240,7 +257,6 @@ class CoreReActAgent(AgentBase):
             config: RunnableConfig = RunnableConfig(
                 {
                     "thread_id": session_id,
-                    "run_id": str(run_id),
                     "audit_context": audit_context,
                     
                 },
@@ -249,17 +265,35 @@ class CoreReActAgent(AgentBase):
             )
 
             result = await self.graph.ainvoke(initial_state, config=config)
-            last_message = result.get("messages", [])[-1] if result.get("messages") else None
+            last_message_in_state = result["messages"][-1]
 
-            final_result = {}
+            finalresult = {
+                "agentresult": last_message_in_state.content,
+                "references": last_message_in_state.additional_kwargs.get(
+                    "references", []
+                ),
+                "response_artifact_parts": last_message_in_state.additional_kwargs.get(
+                    "response_artifact_parts", []
+                ),
+                "agentmessage": last_message_in_state,
+                "query": user_query,
+                "status": "success",
+                "run_id": run_id,
+                "response_from_cache": last_message_in_state.additional_kwargs.get(
+                    "response_from_cache", False
+                ),
+                "redact": last_message_in_state.additional_kwargs.get(
+                    "redact", "false"
+                ),
+            }
 
-            # Execute the workflow and get the response
-            response = {}  # Placeholder for actual response from workflow execution
+            response_cits = finalresult.get("references", [])
+            tags = get_tags_from_context_and_response(audit_context, response_cits)
+            if tags and current_run is not None:
+                current_run.tags.extend(tags)
+            self.logger.info("CoreReactAgent execution completed successfully.")
 
-            # Log the response
-            self.logger.info(f"Generated response: {response}")
-
-            return response
+            return finalresult
 
         except BadRequestError as e:
             self.logger.error(f"BadRequestError occurred: {e}")
@@ -289,19 +323,18 @@ class CoreReActAgent(AgentBase):
             e.error_details = {"query": user_query, "conversation_id": session_id}
             raise
 
-    def set_user_session_details(self, user_query: str, session_id: str, audit_context: dict) -> tuple[HumanMessage, str]:
+    def set_user_session_details(self, user_query: str, session_id: str, audit_context: dict) -> tuple[HumanMessage, str | None, RunTree]:
         current_run = get_current_run_tree()
-        run_id = current_run.run_id if current_run else None
+        run_id = None
         user_message = HumanMessage(content=user_query, 
-                                        additional_kwargs={"messageid": run_id})
-        user_message.additional_kwargs["sessionid"] = run_id
-        user_message.additional_kwargs["messageid"] = generate_uuid7_id()
+                                        additional_kwargs={"messageid": generate_uuid7_id()})
+        user_message.additional_kwargs["sessionid"] = session_id
         references = audit_context.get("references", [])
         if isinstance(references, list):
             user_message.additional_kwargs["references"] = references.copy()
         else:
             user_message.additional_kwargs["references"] = []
-        user_message.additional_kwargs["run_id"] = str(run_id)
+        user_message.additional_kwargs["run_id"] = None
 
         if audit_context is not None:
             if isinstance(audit_context, AuditContext):
@@ -310,7 +343,7 @@ class CoreReActAgent(AgentBase):
         if session_id:
             self.chat_history_client.add_message(session_id, user_message)
             self.logger.info(f"User message added to chat history for session_id: {session_id}")
-        return user_message, run_id
+        return user_message, run_id, current_run
     
     def print_graph_in_png(self, filename: str) -> None:
         
@@ -332,7 +365,7 @@ class CoreReActAgent(AgentBase):
     
     async def should_continue_iteration(
         self, state: SharedAgentState, config: RunnableConfig
-    ) -> langgraph_types.Command:
+    ) -> langgraph_types.Command[Literal["combine_results", "execute_tools"]]:
         """
         Determines whether to continue iterating based on the number of tool calls in the last AIMessage.
 
@@ -378,7 +411,7 @@ class CoreReActAgent(AgentBase):
             enabletoolcalls = tool_call_count <= self.maxiterations
 
             skip_history_for_strict_tool = True
-            if len(invoked_tools) == 1 and invoked_tools[0] in self.ignore_tools:
+            if len(invoked_tools) == 1:
                 skip_history_for_strict_tool = False
 
             checkpointhistorymessages = []
@@ -437,8 +470,8 @@ class CoreReActAgent(AgentBase):
                 for tool in self.tools
                 if tool.name not in self.filtered_agents_to_exclude
             ]
-            self.summarizerllm = self.summarizerllm.addtools(filtered_tools)
-            combined_response = await self.summarizerllm.agenerateresponse(
+            self.summarizer_llm = self.summarizer_llm.addtools(filtered_tools)
+            combined_response = await self.summarizer_llm.agenerateresponse(
                 prompt_string, enabletoolcalls, failonguardrailscanning=False
             )
 
@@ -527,7 +560,7 @@ class CoreReActAgent(AgentBase):
             )
             raise AgentException(message.content, e.args)
         
-    async def get_from_semantic_cache_node(
+    def get_from_semantic_cache_node(
         self, state: SharedAgentState, config: RunnableConfig
     ) -> SharedAgentState:
         """
@@ -555,6 +588,9 @@ class CoreReActAgent(AgentBase):
             return state
         
 
+
+
+            # Removed async
 
         # To implement semantic caching
 
@@ -678,6 +714,14 @@ class CoreReActAgent(AgentBase):
                     if isinstance(historymessages[-1], HumanMessage):
                         historymessages = historymessages[:-1]
                         
+
+            filtered_tool = [
+                tool
+                for tool in self.tools
+                if tool.name not in self.filtered_agents_to_exclude
+            ]
+            self.llm = self.llm.addtools(filtered_tool)
+
             user_query = last_human_message_1
             tool_descriptions_str = ""
             current_datetime = datetime.datetime.now().isoformat()
@@ -928,7 +972,7 @@ class CoreReActAgent(AgentBase):
 
             tool_descriptions_str = "\n".join(
                 [
-                    f"Name: {tool.name}, Description: {tool.detailed_description}"
+                    f"Name: {tool.name}, Description: {tool.description}"
                     for tool in filtered_tools
                 ]
             )
@@ -1153,6 +1197,7 @@ class CoreReActAgent(AgentBase):
         except Exception as e:
             self.logger.error(f"An error occurred in create_ai_message: {e}")
             raise
+    
     async def update_semantic_cache_node(self, state) -> SharedAgentState:
         """
         Updates cache if last ai message response is from cache.
@@ -1228,7 +1273,7 @@ class CoreReActAgent(AgentBase):
     
     async def combine_results(
         self, state: SharedAgentState, config: RunnableConfig
-    ) -> Union[SharedAgentState, langgraph_types.Send, langgraph_types.Command]:
+    ) -> SharedAgentState:
 
         self.logger.info("Executing COMBINE_RESULTS_NODE")
         # Check if we have last human message in state

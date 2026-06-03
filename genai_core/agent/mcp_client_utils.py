@@ -18,7 +18,7 @@ class StructuredToolToBaseToolAdapter(BaseTool):
     # Description of tool
     description: str = ""
     # Structured tool instance
-    structured_tool: Any = None
+    structured_tool: StructuredTool = None
 
     def __init__(self, structured_tool:StructuredTool, *args:tuple, **kwargs:dict) -> None:
         """

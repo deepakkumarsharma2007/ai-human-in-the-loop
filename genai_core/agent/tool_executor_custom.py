@@ -20,6 +20,8 @@ class CustomToolExecutorNode:
     def __init__(self, tools: Sequence[BaseTool]):
         self.tools = tools
         self.logger = DKSAgentLogger.get_logger()
+        sensitive_tools_env = os.getenv("DKS_SENSITIVE_TOOLS", "") # sentisitve tools are handled
+        self.sensitive_tools = [tool.strip() for tool in sensitive_tools_env.split(",")] if sensitive_tools_env else []
 
 
     def get_decoded_strucutred_response(self, agent_response:str)->Any:
@@ -117,7 +119,7 @@ class CustomToolExecutorNode:
     async def execute_tool(self, tooltoexecute: Any, tool_call:Any) -> tuple:
         istoolsuccess = False                        
         try:
-            result = await tooltoexecute.arun(tool_input=tool_call["args"])
+            result = await tooltoexecute._arun(tool_input=tool_call["args"])
             istoolsuccess = True
         except Exception as e:
             self.logger.exception(e)
@@ -165,8 +167,16 @@ class CustomToolExecutorNode:
                             tool_call_execute["args"]["auditcontext"] = self.extract_auditcontext_from_config(tooltoexecute.name, config)
                         self.logger.debug(f"Executing tool {tooltoexecute.name} with {tool_call_execute['args']}")
 
-                        # Execute tool
-                        result, istoolsuccess = await self.execute_tool(tooltoexecute, tool_call_execute)
+                        # Execute tool with retry logic
+                        result = None
+                        istoolsuccess = False
+                        max_retries = 3
+                        for attempt in range(max_retries):
+                            result, istoolsuccess = await self.execute_tool(tooltoexecute, tool_call_execute)
+                            if istoolsuccess:
+                                break
+                            self.logger.warning(f"Tool execution attempt {attempt + 1}/{max_retries} failed for {tooltoexecute.name}")
+
 
                         # Get tool message from agent result
                         tool_message = self.get_tool_message_from_agent_response(
