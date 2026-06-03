@@ -95,7 +95,7 @@ async def create_or_send_or_hitl(
 
     # Get tools for the agent
     tools_from_mcp = await get_mcp_tools(auditcontext=auditcontext)
-    tools_from_semantic_search = get_semantic_document_search_tools(auditcontext=auditcontext)
+    tools_from_semantic_search = await get_semantic_document_search_tools(auditcontext=auditcontext)
     tools = tools_from_semantic_search + tools_from_mcp
 
     # Initialize the agent

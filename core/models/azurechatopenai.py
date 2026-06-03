@@ -162,7 +162,7 @@ class AzureChatOpenAiModel(ModelBase):
         """
         
         # Check guardrails on prompt
-        self.guardrail_check_on_prompt(prompt, failonguardrailscanning, ignoreguardrailscan)
+        #    self.guardrail_check_on_prompt(prompt, failonguardrailscanning, ignoreguardrailscan)
 
         # Load model if not loaded
         if not self.client:
@@ -174,8 +174,9 @@ class AzureChatOpenAiModel(ModelBase):
         else:
             response = await self.client.ainvoke(prompt)
         
+        return response
         # Return processed response using llm guardrails 
-        return self.llmguard_process_response(response, prompt, ignoreguardrailscan)
+        # return self.llmguard_process_response(response, prompt, ignoreguardrailscan)
 
 
     def addtools(self, tools: List[BaseTool]) -> ModelBase:

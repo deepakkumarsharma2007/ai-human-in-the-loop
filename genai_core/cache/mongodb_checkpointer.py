@@ -1,6 +1,5 @@
 from langgraph.checkpoint.mongodb import MongoDBSaver
 import os
-from redis import Redis
 
 class MongoDBCheckPointer:
     def __init__(self):
