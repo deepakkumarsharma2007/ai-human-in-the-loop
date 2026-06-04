@@ -77,7 +77,7 @@ class StructuredToolToBaseToolAdapter(BaseTool):
             str: Tool call result.
         """
         # @TODO: Test for *args case, where args has the tool call parameters.
-        call_tool_result = await self.structured_tool.coroutine(**kwargs)
+        call_tool_result = await self.structured_tool.ainvoke(input=kwargs["tool_input"])
         return call_tool_result
 
 
