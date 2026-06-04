@@ -120,7 +120,7 @@ class CoreReActAgent(AgentBase):
         workflow.add_node(UPDATE_SEMANTIC_CACHE_NODE, self.update_semantic_cache_node)
         workflow.add_node(TOOL_SELECTOR_NODE, self.decide_tools_with_llm)
         tool_node = CustomToolExecutorNode(self.tools)
-        workflow.add_node(EXECUTE_TOOLS_NODE, tool_node, retry_policy= RetryPolicy(max_attempts=2))
+        workflow.add_node(EXECUTE_TOOLS_NODE, tool_node) #, retry_policy= RetryPolicy(max_attempts=2))
         workflow.add_node(SHOULD_CONTINUE_ITERATION_NODE, self.should_continue_iteration)
         workflow.add_node(COMBINE_RESULTS_NODE, self.combine_results)
         workflow.add_node(UPDATE_CHAT_HISTORY_NODE, self.update_chat_history_node)
@@ -152,17 +152,17 @@ class CoreReActAgent(AgentBase):
                 self.graph: CompiledStateGraph = workflow.compile(
                     checkpointer= RedisCheckPointer().set_redis_checkpointer()
                 )
-                self.print_graph_in_png("react_agent_workflow.png")
+                # self.print_graph_in_png("react_agent_workflow.png")
                 return
         elif self.checkpointer_type == CheckPointer.MONGODB:
                 self.graph: CompiledStateGraph = workflow.compile(
                     checkpointer= MongoDBCheckPointer().set_mongodb_checkpointer()
                 )
-                self.print_graph_in_png("react_agent_workflow.png")
+                # self.print_graph_in_png("react_agent_workflow.png")
                 return
         self.graph: CompiledStateGraph = workflow.compile()
 
-        self.print_graph_in_png("react_agent_workflow.png")
+        # self.print_graph_in_png("react_agent_workflow.png")
 
 
 
