@@ -2,7 +2,8 @@ import os
 import json
 from typing import Any, Sequence, Dict, Union
 from langchain_core.tools import BaseTool
-from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
+from langchain_core.messages import AIMessage, HumanMessage, ToolCall, ToolMessage
+from genai_core.agent.mcp_client_utils import StructuredToolToBaseToolAdapter
 from genai_core.agent.shared_agent_state import SharedAgentState
 from models.requestresponse import OrchestratorAgentResponse, \
     get_text_and_non_text_parts, get_text_from_parts, get_non_text_artifacts
@@ -24,7 +25,7 @@ class CustomToolExecutorNode:
         self.sensitive_tools = [tool.strip() for tool in sensitive_tools_env.split(",")] if sensitive_tools_env else []
 
 
-    def get_decoded_strucutred_response(self, agent_response:str)->Any:
+    def get_decoded_structured_response(self, agent_response:str)->Any:
         """
         Get decoded strucuted response from agent response.
         """
@@ -85,7 +86,7 @@ class CustomToolExecutorNode:
         """
         # Try to json decode agent response to find out 
         # If it is structured response from agent.
-        result = self.get_decoded_strucutred_response(result)
+        result = self.get_decoded_structured_response(result)
         
         
         if self.is_agent_result_of_type_model(result, OrchestratorAgentResponse):            
@@ -116,7 +117,7 @@ class CustomToolExecutorNode:
 
         return tool_message         
 
-    async def execute_tool(self, tooltoexecute: Any, tool_call:Any) -> tuple:
+    async def execute_tool(self, tooltoexecute: StructuredToolToBaseToolAdapter, tool_call:ToolCall) -> tuple:
         istoolsuccess = False                        
         try:
             result = await tooltoexecute._arun(tool_input=tool_call["args"])
@@ -158,7 +159,7 @@ class CustomToolExecutorNode:
                         break
                 for tool_call in last_message.tool_calls:
                     # Process each tool call as needed
-                    tool_call_execute = deepcopy(tool_call)
+                    tool_call_execute: ToolCall = deepcopy(tool_call)
                     tooltoexecute = tool_call["name"]
                     tooltoexecute = next((tool for tool in self.tools if tool.name == tooltoexecute), None)
                     if tooltoexecute:
