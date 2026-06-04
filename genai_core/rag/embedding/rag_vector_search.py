@@ -15,7 +15,7 @@ async def find_relevant_chunks_from_mongodb_vector_store(query: str):
     return results
 
 async def query_vector_db(vector_store: MongoDBAtlasVectorSearch, query: str) -> list[Document]:
-    results: list[Document] = await vector_store.asimilarity_search(query, k=2)
+    results: list[Document] = await vector_store.asimilarity_search(query, k=5)
     if results and len(results) > 0:
         print(results[0].metadata["chunk_name"])
         print(results[0].page_content)
