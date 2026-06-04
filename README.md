@@ -7,7 +7,7 @@ Tools present
 Ex - Find all unique movie names, use Natural Query tool
 
 2. RAG based search. Book vectorised is Azure Clound Native Architecture
-Ex -What are different NoSQL Databases? Answer from the RAG tool only
+Ex -What are different NoSQL Architectures? Answer from the RAG tool only
 
 
 Workflow diagram
