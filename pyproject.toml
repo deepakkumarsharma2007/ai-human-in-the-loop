@@ -4,10 +4,14 @@ version = "0.1.0"
 description = "HITL Example"
 readme = "README.md"
 requires-python = ">=3.14"
-[project]
+
 dynamic = ["dependencies"]
 
 [tool.setuptools.dynamic]
 dependencies = {file = ["requirements.txt"]}
+
+[tool.pytest.ini_options]
+python_files = ["test_*.py", "*_test.py", "test_llm_as_judge.py"]
+testpaths = ["tests"]
 
 
